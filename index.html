@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DUAL! 🔥 کدومو انتخاب می‌کنی؟</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body {
+    font-family: 'Vazirmatn', Tahoma, sans-serif;
+    background: linear-gradient(135deg,#1a1a2e,#16213e,#0f3460);
+    min-height:100vh; display:flex; align-items:center; justify-content:center;
+    padding:16px; color:#fff; overflow-x:hidden;
+  }
+  .app {
+    width:100%; max-width:480px; background:rgba(255,255,255,0.05);
+    border:1px solid rgba(255,255,255,0.1); border-radius:24px;
+    padding:24px; backdrop-filter:blur(10px);
+    box-shadow:0 20px 60px rgba(0,0,0,0.5);
+  }
+  .header { text-align:center; margin-bottom:8px; }
+  .logo { font-size:28px; font-weight:900; letter-spacing:1px;
+    background:linear-gradient(90deg,#ff6b6b,#feca57,#48dbfb);
+    -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .tagline { font-size:12px; color:#8fa3bf; margin-top:4px; }
+  .stats { display:flex; gap:8px; margin:16px 0; }
+  .stat { flex:1; background:rgba(255,255,255,0.06); border-radius:14px;
+    padding:10px; text-align:center; border:1px solid rgba(255,255,255,0.08); }
+  .stat b { display:block; font-size:18px; color:#feca57; }
+  .stat span { font-size:10px; color:#8fa3bf; }
+  .question-box { background:rgba(255,255,255,0.06); border-radius:18px;
+    padding:20px; text-align:center; margin:16px 0;
+    border:1px solid rgba(255,255,255,0.1); min-height:110px;
+    display:flex; align-items:center; justify-content:center;
+    animation:fade .4s ease; }
+  .question-box p { font-size:17px; font-weight:700; line-height:1.7; }
+  @keyframes fade { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
+  .options { display:flex; flex-direction:column; gap:12px; }
+  .opt {
+    position:relative; border:none; cursor:pointer; text-align:right;
+    background:linear-gradient(135deg,#2d3561,#1f2747); color:#fff;
+    padding:16px 18px; border-radius:16px; font-size:15px; font-weight:700;
+    font-family:inherit; transition:.2s; overflow:hidden;
+    border:1px solid rgba(255,255,255,0.12);
+  }
+  .opt:active { transform:scale(.97); }
+  .opt .fill {
+    position:absolute; inset:0; width:0%;
+    background:linear-gradient(90deg,rgba(255,107,107,.35),rgba(254,202,87,.25));
+    transition:width .8s cubic-bezier(.4,0,.2,1); z-index:0;
+  }
+  .opt .label { position:relative; z-index:1; display:flex; justify-content:space-between; align-items:center; gap:10px; }
+  .opt .pct { color:#feca57; font-size:14px; opacity:0; transition:opacity .3s .4s; }
+  .opt.revealed .pct { opacity:1; }
+  .opt.revealed { cursor:default; }
+  .opt.winner { border-color:#feca57; box-shadow:0 0 20px rgba(254,202,87,.3); }
+  .btn-row { display:flex; gap:10px; margin-top:16px; }
+  .btn {
+    flex:1; padding:14px; border:none; border-radius:14px; font-family:inherit;
+    font-size:14px; font-weight:800; cursor:pointer; transition:.2s;
+  }
+  .btn:active { transform:scale(.96); }
+  .btn-primary { background:linear-gradient(135deg,#ff6b6b,#ee5253); color:#fff; }
+  .btn-ghost { background:rgba(255,255,255,0.08); color:#cfe0f5; border:1px solid rgba(255,255,255,0.12); }
+  .btn:disabled { opacity:.4; cursor:not-allowed; }
+  .result-msg { text-align:center; margin-top:12px; font-size:13px; color:#8fa3bf; min-height:20px; }
+  .footer { text-align:center; margin-top:16px; font-size:10px; color:#5a6b85; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <div class="logo">DUAL! 🔥</div>
+    <div class="tagline">کدومو انتخاب می‌کنی؟ فقط یکی!</div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><b id="statScore">0</b><span>امتیاز</span></div>
+    <div class="stat"><b id="statGames">0</b><span>بازی</span></div>
+  </div>
+
+  <div class="question-box" id="questionBox"><p id="questionText">...</p></div>
+
+  <div class="options">
+    <button class="opt" id="optA" data-side="a">
+      <span class="fill"></span>
+      <span class="label"><span id="labelA">---</span><span class="pct" id="pctA"></span></span>
+    </button>
+    <button class="opt" id="optB" data-side="b">
+      <span class="fill"></span>
+      <span class="label"><span id="labelB">---</span><span class="pct" id="pctB"></span></span>
+    </button>
+  </div>
+
+  <div class="result-msg" id="resultMsg"></div>
+
+  <div class="btn-row">
+    <button class="btn btn-primary" id="nextBtn" disabled>سؤال بعدی ⚡</button>
+    <button class="btn btn-ghost" id="resetBtn">ریست</button>
+  </div>
+
+  <div class="footer">درصدها شبیه‌سازی‌شده‌ان 🎲</div>
+</div>
+
+<script>
+(function(){
+  const STORAGE_KEY = 'dual_game_state_v1';
+
+  // ---------- بانک سوالات ----------
+  const QUESTIONS = [
+    { q:'یک هفته بدون اینترنت یا یک هفته بدون غذاهای موردعلاقه؟', a:'بدون اینترنت', b:'بدون غذای محبوب' },
+    { q:'همیشه ۱۰ دقیقه دیر یا همیشه ۱۰ دقیقه زود؟', a:'۱۰ دقیقه دیر', b:'۱۰ دقیقه زود' },
+    { q:'بتونی پرواز کنی یا نامرئی بشی؟', a:'پرواز 🕊️', b:'نامرئی 👻' },
+    { q:'بدون موسیقی یا بدون فیلم و سریال؟', a:'بدون موسیقی', b:'بدون فیلم' },
+    { q:'گوشی همیشه ۱٪ شارژ یا همیشه بدون آنتن؟', a:'شارژ ۱٪', b:'بدون آنتن' },
+    { q:'تنها در جزیره یا در شهر شلوغ با غریبه‌ها؟', a:'جزیره تنها', b:'شهر شلوغ' },
+    { q:'همیشه کفشت تنگ باشه یا همیشه یقه‌ات خیس باشه؟', a:'کفش تنگ', b:'یقه خیس' },
+    { q:'صبح‌ها آدم صبحی باشی یا شب‌ها آدم شب‌؟', a:'آدم صبح ☀️', b:'آدم شب 🌙' },
+    { q:'حافظه فوق‌العاده یا سرعت فوق‌العاده؟', a:'حافظه 🧠', b:'سرعت ⚡' },
+    { q:'بدون قهوه/چای یا بدون شکلات؟', a:'بدون قهوه/چای', b:'بدون شکلات' },
+    { q:'تیکه کلام خنده‌دار داشته باشی یا همیشه سکوت کنی؟', a:'تیکه کلام', b:'سکوت' },
+    { q:'همیشه ۵ دقیقه منتظر بمونی یا همیشه بقیه منتظرت باشن؟', a:'منتظر بمونم', b:'منتظر بمونن' },
+    { q:'فقط پیتزا بخوری یا فقط سوشی؟', a:'فقط پیتزا 🍕', b:'فقط سوشی 🍣' },
+    { q:'زندگی در آینده یا گذشته؟', a:'آینده 🚀', b:'گذشته 🕰️' },
+    { q:'گربه‌ای که حرف می‌زنه یا سگی که پول درمیاره؟', a:'گربه سخنگو', b:'سگ پول‌ساز' }
+  ];
+
+  // ---------- عناصر ----------
+  const el = {
+    questionText: document.getElementById('questionText'),
+    questionBox: document.getElementById('questionBox'),
+    labelA: document.getElementById('labelA'),
+    labelB: document.getElementById('labelB'),
+    pctA: document.getElementById('pctA'),
+    pctB: document.getElementById('pctB'),
+    optA: document.getElementById('optA'),
+    optB: document.getElementById('optB'),
+    nextBtn: document.getElementById('nextBtn'),
+    resetBtn: document.getElementById('resetBtn'),
+    resultMsg: document.getElementById('resultMsg'),
+    statScore: document.getElementById('statScore'),
+    statGames: document.getElementById('statGames')
+  };
+
+  // ---------- State ----------
+  let state = loadState();
+  let current = null;
+  let answered = false;
+
+  function loadState(){
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if(raw){
+        const s = JSON.parse(raw);
+        if(typeof s.score === 'number' && typeof s.games === 'number'){
+          return { score:s.score, games:s.games, lastIndex: s.lastIndex ?? -1 };
+        }
+      }
+    } catch(e){}
+    return { score:0, games:0, lastIndex:-1 };
+  }
+
+  function saveState(){
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch(e){}
+  }
+
+  function updateStats(){
+    el.statScore.textContent = state.score;
+    el.statGames.textContent = state.games;
+  }
+
+  // ---------- شبیه‌سازی درصد ----------
+  // درصدی بین 15 تا 85 (قرینه)
+  function simulatePercent(){
+    const base = Math.floor(Math.random()*61) + 20; // 20..80
+    return base;
+  }
+
+  // ---------- انتخاب سوال تصادفی ----------
+  function pickQuestion(){
+    if(QUESTIONS.length === 0) return null;
+    let idx;
+    if(QUESTIONS.length === 1) idx = 0;
+    else {
+      do { idx = Math.floor(Math.random()*QUESTIONS.length); }
+      while(idx === state.lastIndex);
+    }
+    state.lastIndex = idx;
+    return QUESTIONS[idx];
+  }
+
+  // ---------- نمایش سوال ----------
+  function showQuestion(){
+    answered = false;
+    current = pickQuestion();
+    if(!current){
+      el.questionText.textContent = 'سوالی موجود نیست!';
+      return;
+    }
+    el.questionText.textContent = current.q;
+    el.labelA.textContent = current.a;
+    el.labelB.textContent = current.b;
+    el.pctA.textContent = '';
+    el.pctB.textContent = '';
+
+    // reset UI
+    [el.optA, el.optB].forEach(o=>{
+      o.classList.remove('revealed','winner');
+      o.querySelector('.fill').style.width = '0%';
+      o.disabled = false;
+    });
+    el.nextBtn.disabled = true;
+    el.resultMsg.textContent = '';
+    // re-trigger animation
+    el.questionBox.style.animation = 'none';
+    void el.questionBox.offsetWidth;
+    el.questionBox.style.animation = 'fade .4s ease';
+  }
+
+  // ---------- پاسخ ----------
+  function answer(side){
+    if(answered || !current) return;
+    answered = true;
+
+    const pctChosen = simulatePercent();          // درصد گزینه‌ی انتخاب‌شده
+    const pctOther = 100 - pctChosen;
+    const isA = side === 'a';
+
+    const pctAVal = isA ? pctChosen : pctOther;
+    const pctBVal = isA ? pctOther : pctChosen;
+
+    // نمایش درصدها
+    el.pctA.textContent = pctAVal + '%';
+    el.pctB.textContent = pctBVal + '%';
+    el.optA.querySelector('.fill').style.width = pctAVal + '%';
+    el.optB.querySelector('.fill').style.width = pctBVal + '%';
+
+    el.optA.classList.add('revealed');
+    el.optB.classList.add('revealed');
+    el.optA.disabled = true;
+    el.optB.disabled = true;
+
+    // برنده = درصد بیشتر
+    if(pctAVal >= pctBVal) el.optA.classList.add('winner');
+    if(pctBVal >= pctAVal) el.optB.classList.add('winner');
+
+    // پیام نتیجه + امتیاز
+    const chosenPct = isA ? pctAVal : pctBVal;
+    let msg = '';
+    if(chosenPct > 50){
+      msg = '🎯 با اکثریت موافقی! +10 امتیاز';
+      state.score += 10;
+    } else if(chosenPct === 50){
+      msg = '🤝 دقیقاً نصف نصف! +5 امتیاز';
+      state.score += 5;
+    } else {
+      msg = '🔥 نظرت خاص بود! +5 امتیاز';
+      state.score += 5;
+    }
+    el.resultMsg.textContent = msg;
+
+    state.games += 1;
+    saveState();
+    updateStats();
+
+    el.nextBtn.disabled = false;
+  }
+
+  // ---------- رویدادها ----------
+  el.optA.addEventListener('click', ()=> answer('a'));
+  el.optB.addEventListener('click', ()=> answer('b'));
+  el.nextBtn.addEventListener('click', showQuestion);
+
+  el.resetBtn.addEventListener('click', ()=>{
+    if(!confirm('مطمئنی؟ امتیاز و تعداد بازی‌ها صفر میشه.')) return;
+    state = { score:0, games:0, lastIndex:-1 };
+    saveState();
+    updateStats();
+    showQuestion();
+  });
+
+  // ---------- شروع ----------
+  updateStats();
+  showQuestion();
+})();
+</script>
+</body>
+  </html>
